@@ -1,143 +1,159 @@
 // auth.js
-// يعتمد على: auth, db, switchView, sanitizeInput (من index.html)
+document.addEventListener('DOMContentLoaded', () => {
+    const authArea = document.getElementById('auth-area');
+    const userDisplayName = document.getElementById('user-display-name');
+    const userRatingDisplay = document.getElementById('user-rating');
+    const authErrorMessage = document.getElementById('auth-error-message');
 
-const authSection = document.getElementById('auth-section');
-const authArea = document.getElementById('auth-area');
-const userEmailDisplay = document.getElementById('user-display-email');
+    // ======================= بناء النماذج ديناميكياً =======================
+    function buildForms() {
+        authArea.innerHTML = `
+            <form id="login-form" class="auth-form">
+                <input type="email" id="login-email" placeholder="البريد الإلكتروني" required autocomplete="email">
+                <input type="password" id="login-password" placeholder="كلمة المرور" required autocomplete="current-password">
+                <button type="submit" class="btn-primary">تسجيل الدخول</button>
+                <button type="button" id="toggle-signup" class="btn-secondary">ليس لديك حساب؟</button>
+            </form>
 
-// إنشاء نماذج تسجيل الدخول/الخروج ديناميكياً
-const loginForm = document.createElement('form');
-const signupForm = document.createElement('form');
-loginForm.className = 'auth-form';
-loginForm.id = 'login-form';
-loginForm.innerHTML = `
-    <input type="email" id="login-email" placeholder="البريد الإلكتروني" required autocomplete="email">
-    <input type="password" id="login-password" placeholder="كلمة السر (6+ أحرف)" required minlength="6" autocomplete="current-password">
-    <button type="submit">تسجيل الدخول</button>
-    <button type="button" id="toggle-signup" class="btn-secondary">ليس لديك حساب؟ إنشاء حساب</button>
-    <p id="auth-error-message" style="color: var(--error-color);"></p>
-`;
-authArea.appendChild(loginForm);
-
-signupForm.className = 'auth-form';
-signupForm.id = 'signup-form';
-signupForm.style.display = 'none';
-signupForm.innerHTML = `
-    <input type="email" id="signup-email" placeholder="البريد الإلكتروني" required autocomplete="email">
-    <input type="password" id="signup-password" placeholder="كلمة سر آمنة (6+ أحرف)" required minlength="6" autocomplete="new-password">
-    <button type="submit">إنشاء حساب جديد</button>
-    <button type="button" id="toggle-login" class="btn-secondary">لديك حساب؟ تسجيل الدخول</button>
-`;
-authArea.appendChild(signupForm);
-
-const authErrorMessage = document.getElementById('auth-error-message');
-
-/** تحويل رمز خطأ Firebase إلى رسالة ودية */
-function getFriendlyErrorMessage(errorCode) {
-    switch (errorCode) {
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-            return 'البريد الإلكتروني أو كلمة السر غير صحيحة.';
-        case 'auth/email-already-in-use':
-            return 'هذا البريد الإلكتروني مسجل بالفعل.';
-        case 'auth/weak-password':
-            return 'كلمة السر ضعيفة جداً. يجب أن تكون 6 أحرف على الأقل.';
-        default:
-            return 'حدث خطأ غير متوقع. يرجى المحاولة لاحقاً.';
+            <form id="signup-form" class="auth-form" style="display:none;">
+                <input type="text" id="signup-username" placeholder="اسم المستخدم (فريد)" required autocomplete="username">
+                <input type="email" id="signup-email" placeholder="البريد الإلكتروني" required autocomplete="email">
+                <input type="password" id="signup-password" placeholder="كلمة المرور (6+ أحرف)" required minlength="6" autocomplete="new-password">
+                <input type="password" id="signup-password-confirm" placeholder="تأكيد كلمة المرور" required minlength="6">
+                <button type="submit" class="btn-primary">إنشاء حساب</button>
+                <button type="button" id="toggle-login" class="btn-secondary">لديك حساب بالفعل؟</button>
+            </form>
+        `;
+        addFormListeners();
     }
-}
 
-// ==================================================
-// معالجات نماذج المصادقة
-// ==================================================
+    // ======================= معالجات الأحداث =======================
+    function addFormListeners() {
+        const loginForm = document.getElementById('login-form');
+        const signupForm = document.getElementById('signup-form');
 
-loginForm.onsubmit = async (e) => {
-    e.preventDefault();
-    authErrorMessage.textContent = '';
-    const email = sanitizeInput(document.getElementById('login-email').value);
-    const password = document.getElementById('login-password').value;
-    try {
-        await auth.signInWithEmailAndPassword(email, password);
-    } catch (error) {
-        authErrorMessage.textContent = getFriendlyErrorMessage(error.code);
-    }
-};
-
-signupForm.onsubmit = async (e) => {
-    e.preventDefault();
-    authErrorMessage.textContent = '';
-    const email = sanitizeInput(document.getElementById('signup-email').value);
-    const password = document.getElementById('signup-password').value;
-    try {
-        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-        // تسجيل المستخدم في قاعدة البيانات مع ELO افتراضي
-        db.ref('users/' + userCredential.user.uid).set({ 
-            email: email, 
-            isOnline: true,
-            rating: 1200, // ELO تقييم افتراضي
-            createdAt: firebase.database.ServerValue.TIMESTAMP
-        });
-    } catch (error) {
-        authErrorMessage.textContent = getFriendlyErrorMessage(error.code);
-    }
-};
-
-document.getElementById('logout-button').onclick = () => {
-    if (currentUserId) {
-        // تحديث الحالة إلى غير متصل
-        db.ref('users/' + currentUserId + '/isOnline').set(false);
-    }
-    auth.signOut();
-};
-
-document.getElementById('toggle-signup').onclick = () => {
-    loginForm.style.display = 'none';
-    signupForm.style.display = 'flex';
-    authErrorMessage.textContent = '';
-};
-
-document.getElementById('toggle-login').onclick = () => {
-    loginForm.style.display = 'flex';
-    signupForm.style.display = 'none';
-    authErrorMessage.textContent = '';
-};
-
-// ==================================================
-// مراقبة حالة المصادقة والتحكم بالواجهات
-// ==================================================
-
-auth.onAuthStateChanged((user) => {
-    if (user) {
-        // المستخدم مسجل الدخول
-        currentUserId = user.uid;
-        window.switchView('lobby-view'); // **التبديل للردهة**
-
-        // إظهار أزرار التحكم
-        document.getElementById('header-buttons').style.display = 'flex';
-        document.getElementById('lobby-button').style.display = 'inline-block';
-        document.getElementById('logout-button').style.display = 'inline-block';
-        userEmailDisplay.textContent = sanitizeInput(user.email);
-
-        // تحديث حالة الاتصال ونقاط التقييم
-        const userRef = db.ref('users/' + currentUserId);
-        userRef.onDisconnect().update({ isOnline: false });
-        userRef.update({ isOnline: true }); 
+        loginForm.addEventListener('submit', handleLogin);
+        signupForm.addEventListener('submit', handleSignup);
         
-        userRef.once('value', (snap) => {
-            const userData = snap.val();
-            document.getElementById('user-rating').textContent = userData.rating || '1200';
-        });
+        document.getElementById('toggle-signup').addEventListener('click', () => toggleForms(false));
+        document.getElementById('toggle-login').addEventListener('click', () => toggleForms(true));
+        document.getElementById('logout-button').addEventListener('click', handleLogout);
+    }
 
-        // تحميل قائمة اللاعبين (من app.js)
-        if (typeof loadPlayersList === 'function') {
-            loadPlayersList(); 
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        authErrorMessage.textContent = '';
+        const email = sanitizeInput(document.getElementById('login-email').value);
+        const password = document.getElementById('login-password').value;
+        try {
+            await auth.signInWithEmailAndPassword(email, password);
+        } catch (error) {
+            authErrorMessage.textContent = getFriendlyErrorMessage(error.code);
+        }
+    };
+
+    const handleSignup = async (e) => {
+        e.preventDefault();
+        authErrorMessage.textContent = '';
+        const username = sanitizeInput(document.getElementById('signup-username').value.trim());
+        const email = sanitizeInput(document.getElementById('signup-email').value);
+        const password = document.getElementById('signup-password').value;
+        const passwordConfirm = document.getElementById('signup-password-confirm').value;
+
+        if (password !== passwordConfirm) {
+            return authErrorMessage.textContent = 'كلمتا المرور غير متطابقتين!';
+        }
+        if (username.length < 3) {
+            return authErrorMessage.textContent = 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل.';
         }
 
-    } else {
-        // المستخدم غير مسجل الدخول
-        currentUserId = null;
-        window.switchView('login-view'); // **التبديل للتسجيل**
-        document.getElementById('header-buttons').style.display = 'none';
-        document.getElementById('logout-button').style.display = 'none';
+        try {
+            // الخطوة 1: التحقق من أن اسم المستخدم غير موجود
+            const usernameSnapshot = await db.ref('users').orderByChild('username').equalTo(username).once('value');
+            if (usernameSnapshot.exists()) {
+                throw { code: 'auth/username-already-in-use' };
+            }
+
+            // الخطوة 2: إنشاء الحساب
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            
+            // الخطوة 3: حفظ بيانات المستخدم في قاعدة البيانات
+            await db.ref('users/' + userCredential.user.uid).set({
+                username: username,
+                email: email,
+                isOnline: true,
+                rating: 1200, // ELO افتراضي
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+            });
+
+        } catch (error) {
+            authErrorMessage.textContent = getFriendlyErrorMessage(error.code);
+        }
+    };
+    
+    const handleLogout = () => {
+        if (currentUserId) {
+            db.ref(`users/${currentUserId}/isOnline`).set(false);
+        }
+        auth.signOut();
+    };
+
+    function toggleForms(showLogin) {
+        document.getElementById('login-form').style.display = showLogin ? 'flex' : 'none';
+        document.getElementById('signup-form').style.display = showLogin ? 'none' : 'flex';
+        authErrorMessage.textContent = '';
     }
+
+    // ======================= إدارة حالة المصادقة =======================
+    auth.onAuthStateChanged((user) => {
+        const headerButtons = document.getElementById('header-buttons');
+        const logoutButton = document.getElementById('logout-button');
+        const lobbyButton = document.getElementById('lobby-button');
+
+        if (user) {
+            currentUserId = user.uid;
+            const userRef = db.ref('users/' + currentUserId);
+
+            // تحديث حالة الاتصال
+            userRef.onDisconnect().update({ isOnline: false });
+            userRef.update({ isOnline: true });
+
+            // جلب بيانات المستخدم وعرضها
+            userRef.on('value', (snap) => {
+                if (!snap.exists()) return;
+                const userData = snap.val();
+                userDisplayName.textContent = sanitizeInput(userData.username);
+                userRatingDisplay.textContent = userData.rating || 1200;
+                document.getElementById('player-name').textContent = sanitizeInput(userData.username);
+            });
+
+            // تحديث الواجهة
+            switchView('lobby-view');
+            headerButtons.style.display = 'flex';
+            logoutButton.style.display = 'block';
+            lobbyButton.style.display = 'block';
+
+            // تحميل اللاعبين وبدء مراقبة التحديات (من app.js)
+            window.loadPlayersList();
+            window.monitorIncomingChallenges();
+
+        } else {
+            currentUserId = null;
+            switchView('login-view');
+            headerButtons.style.display = 'none';
+        }
+    });
+    
+    function getFriendlyErrorMessage(code) {
+        switch (code) {
+            case 'auth/user-not-found':
+            case 'auth/wrong-password': return 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
+            case 'auth/email-already-in-use': return 'هذا البريد الإلكتروني مسجل بالفعل.';
+            case 'auth/weak-password': return 'كلمة المرور ضعيفة (6 أحرف على الأقل).';
+            case 'auth/username-already-in-use': return 'اسم المستخدم هذا محجوز، اختر اسماً آخر.';
+            default: return 'حدث خطأ. يرجى المحاولة مرة أخرى.';
+        }
+    }
+
+    buildForms();
 });

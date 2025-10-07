@@ -3,84 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق شطرنج احترافي | ثلاث واجهات</title>
+    <title>تطبيق شطرنج احترافي | النسخة المطورة</title>
     
     <link rel="stylesheet" href="styles.css">
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+
 </head>
 <body>
 
     <header>
-        <h1> تطبيق شطرنج احترافي 👑 </h1>
+        <h1 class="logo"> Professional Chess 👑 </h1>
         <div id="header-buttons">
-            <button id="lobby-button" style="display:none;">قائمة اللاعبين</button>
+            <button id="lobby-button" style="display:none;">الردهة</button>
             <button id="settings-button" aria-label="الإعدادات">⚙️</button>
             <button id="logout-button" class="btn-error" style="display:none;">خروج</button>
         </div>
     </header>
 
-    <div class="main-content-area">
+    <div class="main-container">
         
-        <section id="login-view" class="view active-view">
+        <section id="login-view" class="view">
             <div class="auth-box">
-                <h2>تسجيل الدخول / إنشاء حساب آمن</h2>
+                <h2>تسجيل الدخول / إنشاء حساب</h2>
                 <div id="auth-area">
                     </div>
+                <p id="auth-error-message" class="error-text"></p>
             </div>
         </section>
 
-        <section id="lobby-view" class="view" style="display:none;">
-            <aside class="lobby-sidebar">
-                <div class="user-stats-card">
-                    <h3>أنت: <span id="user-display-email"></span></h3>
+        <section id="lobby-view" class="view">
+            <aside class="sidebar">
+                <div class="card">
+                    <h3>👤 ملفك الشخصي</h3>
+                    <p>مرحباً, <strong id="user-display-name"></strong></p>
                     <p>التقييم (ELO): <span id="user-rating">1200</span></p>
-                    <p>ضبط التحدي:</p>
-                    <select id="time-control-select" class="full-width-select">
-                        <option value="5">5 دقائق (سريع)</option>
-                        <option value="10">10 دقائق (خاطف)</option>
-                        <option value="15">15 دقيقة</option>
-                        <option value="40">40 دقيقة (كلاسيكي)</option>
-                    </select>
-                    <select id="match-type-select" class="full-width-select">
-                        <option value="rated">مباراة مصنفة</option>
-                        <option value="unrated">مباراة غير مصنفة</option>
-                    </select>
                 </div>
-                
-                <div class="control-group">
-                    <input type="text" id="search-input" placeholder="بحث عن لاعب بريد إلكتروني/معرف...">
-                    <button id="search-button">بحث</button>
+                <div class="card">
+                    <h3>⚙️ إعدادات التحدي</h3>
+                    <label for="time-control-select">وقت المباراة:</label>
+                    <select id="time-control-select" class="control-input">
+                        <option value="5">5 دقائق (Blitz)</option>
+                        <option value="10">10 دقائق (Rapid)</option>
+                        <option value="30">30 دقيقة (Classical)</option>
+                    </select>
+                    <label for="match-type-select">نوع المباراة:</label>
+                    <select id="match-type-select" class="control-input">
+                        <option value="rated">مصنفة (Rated)</option>
+                        <option value="unrated">ودية (Unrated)</option>
+                    </select>
                 </div>
             </aside>
             
-            <main class="lobby-main">
-                <h2>اللاعبون النشطون (🟢) والتحديات الواردة</h2>
-                <ul id="active-players-list" class="player-list"></ul>
-                
-                <h3 class="list-title inactive-title">اللاعبون الآخرون (⚫)</h3>
-                <ul id="inactive-players-list" class="player-list"></ul>
+            <main class="main-content">
+                <h2>اللاعبون المتوفرون</h2>
+                <div class="player-lists-container">
+                    <div class="player-list-wrapper">
+                        <h3>🟢 متصلون</h3>
+                        <ul id="active-players-list" class="player-list"></ul>
+                    </div>
+                    <div class="player-list-wrapper">
+                        <h3>⚫ غير متصلين</h3>
+                        <ul id="inactive-players-list" class="player-list"></ul>
+                    </div>
+                </div>
             </main>
         </section>
         
-        <section id="game-view" class="view" style="display:none;">
+        <section id="game-view" class="view">
+            <div class="game-info-panel top-panel">
+                 <div class="player-info">
+                    <span id="opponent-name">الخصم</span>
+                    <span class="clock" id="opponent-clock">00:00</span>
+                </div>
+            </div>
+
             <main class="game-board-area">
                 <div id="chessboard" class="chessboard"></div>
             </main>
             
-            <div class="game-info-sidebar">
-                <h3 id="opponent-name">الخصم: جارٍ التحميل...</h3>
-                <p>وقت المباراة: <span id="game-time-control">N/A</span></p>
-                <div id="player-clocks">
-                    <div id="white-clock" class="clock">أبيض: 00:00</div>
-                    <div id="black-clock" class="clock">أسود: 00:00</div>
+            <div class="game-info-panel bottom-panel">
+                 <div class="player-info">
+                    <span id="player-name">أنت</span>
+                    <span class="clock" id="player-clock">00:00</span>
                 </div>
-                <div id="game-status-message" class="status-message">انتظر حركة الخصم...</div>
-                <button id="resign-button" class="btn-error">استسلام</button>
-                <button id="draw-button">طلب تعادل</button>
+                 <div id="game-controls">
+                    <button id="draw-button">طلب تعادل</button>
+                    <button id="resign-button" class="btn-error">استسلام</button>
+                </div>
             </div>
+            <div id="game-status-message" class="status-message"></div>
         </section>
 
     </div>
@@ -88,21 +104,30 @@
     <div id="settings-modal" class="modal">
         <div class="modal-content">
             <span class="close-button">&times;</span>
-            <h2>إعدادات الموقع</h2>
-            <div id="settings-content">
-                <label for="theme-select">اختيار المظهر:</label>
-                <select id="theme-select">
-                    <option value="dark">مظلم (Dark)</option>
+            <h2>الإعدادات</h2>
+            <div class="settings-form">
+                <label for="theme-select">مظهر الموقع:</label>
+                <select id="theme-select" class="control-input">
+                    <option value="dark">داكن (Dark)</option>
                     <option value="light">فاتح (Light)</option>
                 </select>
-                <p class="security-note">تنبيه: تطبيقك محمي بقواعد أمان صارمة ومؤمن عبر Firebase.</p>
             </div>
         </div>
     </div>
 
+    <div id="challenge-modal" class="modal">
+        <div class="modal-content">
+            <h3>⚔️ تحدٍ جديد ورد إليك! ⚔️</h3>
+            <p id="challenge-details"></p>
+            <div class="modal-actions">
+                <button id="accept-challenge-btn" class="btn-primary">قبول</button>
+                <button id="decline-challenge-btn" class="btn-secondary">رفض</button>
+            </div>
+        </div>
+    </div>
 
     <script>
-        // *** 1. تكوين Firebase (باستخدام بياناتك) ***
+        // *** 1. تكوين Firebase (استخدم بياناتك الخاصة هنا) ***
         const firebaseConfig = {
             apiKey: "AIzaSyA8YheQlUP4BaWpa1iTE1MjTjttS1B6_rU",
             authDomain: "chat-app-965ed.firebaseapp.com",
@@ -120,30 +145,23 @@
         let currentUserId = null;
         let currentGameId = null; 
 
-        // دالة التبديل بين المشاهد (الواجهات)
+        // دالة التبديل بين الواجهات
         window.switchView = function(viewId) {
-            document.querySelectorAll('.view').forEach(view => {
-                view.style.display = 'none';
-                view.classList.remove('active-view');
-            });
+            document.querySelectorAll('.view').forEach(view => view.style.display = 'none');
             const targetView = document.getElementById(viewId);
-            if (targetView) {
-                targetView.style.display = 'flex';
-                targetView.classList.add('active-view');
-                window.scrollTo(0, 0);
-            }
+            if (targetView) targetView.style.display = 'flex';
         };
 
-        // دالة تطهير المدخلات (للأمان)
-        window.sanitizeInput = function(input) {
+        // دالة تطهير المدخلات للأمان
+        window.sanitizeInput = (input) => {
             const temp = document.createElement('div');
             temp.textContent = input;
             return temp.innerHTML;
-        }
+        };
     </script>
     
     <script src="auth.js"></script>
-    <script src="game.js"></script>
     <script src="app.js"></script>
+    <script src="game.js"></script>
 </body>
 </html>
