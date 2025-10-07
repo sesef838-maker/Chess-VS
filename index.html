@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق شطرنج احترافي | النسخة المطورة</title>
+    <title>مملكة الشطرنج | Chess Kingdom</title>
     
     <link rel="stylesheet" href="styles.css">
     
@@ -17,7 +17,7 @@
 <body>
 
     <header>
-        <h1 class="logo"> Professional Chess 👑 </h1>
+        <h1 class="logo">♛ Chess Kingdom</h1>
         <div id="header-buttons">
             <button id="lobby-button" style="display:none;">الردهة</button>
             <button id="settings-button" aria-label="الإعدادات">⚙️</button>
@@ -105,7 +105,15 @@
         <div class="modal-content">
             <span class="close-button">&times;</span>
             <h2>الإعدادات</h2>
-            <div class="settings-form">
+            <div class="settings-section">
+                <h4>تعديل الملف الشخصي</h4>
+                <label for="username-edit-input">تغيير اسم المستخدم:</label>
+                <input type="text" id="username-edit-input" class="control-input" placeholder="أدخل الاسم الجديد">
+                <button id="save-username-button" class="btn-primary">حفظ الاسم</button>
+                <p id="settings-feedback" class="feedback-text"></p>
+            </div>
+            <div class="settings-section">
+                <h4>المظهر</h4>
                 <label for="theme-select">مظهر الموقع:</label>
                 <select id="theme-select" class="control-input">
                     <option value="dark">داكن (Dark)</option>

@@ -9,17 +9,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function buildForms() {
         authArea.innerHTML = `
             <form id="login-form" class="auth-form">
-                <input type="email" id="login-email" placeholder="البريد الإلكتروني" required autocomplete="email">
-                <input type="password" id="login-password" placeholder="كلمة المرور" required autocomplete="current-password">
+                <input type="email" id="login-email" class="control-input" placeholder="البريد الإلكتروني" required autocomplete="email">
+                <input type="password" id="login-password" class="control-input" placeholder="كلمة المرور" required autocomplete="current-password">
                 <button type="submit" class="btn-primary">تسجيل الدخول</button>
                 <button type="button" id="toggle-signup" class="btn-secondary">ليس لديك حساب؟</button>
             </form>
 
             <form id="signup-form" class="auth-form" style="display:none;">
-                <input type="text" id="signup-username" placeholder="اسم المستخدم (فريد)" required autocomplete="username">
-                <input type="email" id="signup-email" placeholder="البريد الإلكتروني" required autocomplete="email">
-                <input type="password" id="signup-password" placeholder="كلمة المرور (6+ أحرف)" required minlength="6" autocomplete="new-password">
-                <input type="password" id="signup-password-confirm" placeholder="تأكيد كلمة المرور" required minlength="6">
+                <input type="text" id="signup-username" class="control-input" placeholder="اسم المستخدم (فريد)" required autocomplete="username">
+                <input type="email" id="signup-email" class="control-input" placeholder="البريد الإلكتروني" required autocomplete="email">
+                <input type="password" id="signup-password" class="control-input" placeholder="كلمة المرور (6+ أحرف)" required minlength="6" autocomplete="new-password">
+                <input type="password" id="signup-password-confirm" class="control-input" placeholder="تأكيد كلمة المرور" required minlength="6">
                 <button type="submit" class="btn-primary">إنشاء حساب</button>
                 <button type="button" id="toggle-login" class="btn-secondary">لديك حساب بالفعل؟</button>
             </form>
@@ -29,12 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ======================= معالجات الأحداث =======================
     function addFormListeners() {
-        const loginForm = document.getElementById('login-form');
-        const signupForm = document.getElementById('signup-form');
-
-        loginForm.addEventListener('submit', handleLogin);
-        signupForm.addEventListener('submit', handleSignup);
-        
+        document.getElementById('login-form').addEventListener('submit', handleLogin);
+        document.getElementById('signup-form').addEventListener('submit', handleSignup);
         document.getElementById('toggle-signup').addEventListener('click', () => toggleForms(false));
         document.getElementById('toggle-login').addEventListener('click', () => toggleForms(true));
         document.getElementById('logout-button').addEventListener('click', handleLogout);
@@ -60,29 +56,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const password = document.getElementById('signup-password').value;
         const passwordConfirm = document.getElementById('signup-password-confirm').value;
 
-        if (password !== passwordConfirm) {
-            return authErrorMessage.textContent = 'كلمتا المرور غير متطابقتين!';
-        }
-        if (username.length < 3) {
-            return authErrorMessage.textContent = 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل.';
-        }
+        if (password !== passwordConfirm) return authErrorMessage.textContent = 'كلمتا المرور غير متطابقتين!';
+        if (username.length < 3 || username.length > 15) return authErrorMessage.textContent = 'اسم المستخدم يجب أن يكون بين 3 و 15 حرفاً.';
 
         try {
-            // الخطوة 1: التحقق من أن اسم المستخدم غير موجود
-            const usernameSnapshot = await db.ref('users').orderByChild('username').equalTo(username).once('value');
+            // **الإصلاح الرئيسي هنا:** نتأكد أننا نستخدم مرجع DB الذي تم تهيئته بشكل صحيح
+            const usersRef = db.ref('users');
+            const usernameSnapshot = await usersRef.orderByChild('username').equalTo(username).once('value');
             if (usernameSnapshot.exists()) {
                 throw { code: 'auth/username-already-in-use' };
             }
 
-            // الخطوة 2: إنشاء الحساب
             const userCredential = await auth.createUserWithEmailAndPassword(email, password);
             
-            // الخطوة 3: حفظ بيانات المستخدم في قاعدة البيانات
-            await db.ref('users/' + userCredential.user.uid).set({
+            await usersRef.child(userCredential.user.uid).set({
                 username: username,
                 email: email,
                 isOnline: true,
-                rating: 1200, // ELO افتراضي
+                rating: 1200,
                 createdAt: firebase.database.ServerValue.TIMESTAMP
             });
 
@@ -92,9 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     const handleLogout = () => {
-        if (currentUserId) {
-            db.ref(`users/${currentUserId}/isOnline`).set(false);
-        }
+        if (currentUserId) db.ref(`users/${currentUserId}/isOnline`).set(false);
         auth.signOut();
     };
 
@@ -106,48 +95,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ======================= إدارة حالة المصادقة =======================
     auth.onAuthStateChanged((user) => {
-        const headerButtons = document.getElementById('header-buttons');
-        const logoutButton = document.getElementById('logout-button');
-        const lobbyButton = document.getElementById('lobby-button');
-
         if (user) {
             currentUserId = user.uid;
             const userRef = db.ref('users/' + currentUserId);
 
-            // تحديث حالة الاتصال
             userRef.onDisconnect().update({ isOnline: false });
             userRef.update({ isOnline: true });
 
-            // جلب بيانات المستخدم وعرضها
             userRef.on('value', (snap) => {
                 if (!snap.exists()) return;
                 const userData = snap.val();
-                userDisplayName.textContent = sanitizeInput(userData.username);
+                const safeUsername = sanitizeInput(userData.username || "لاعب جديد"); // اسم افتراضي
+                userDisplayName.textContent = safeUsername;
                 userRatingDisplay.textContent = userData.rating || 1200;
-                document.getElementById('player-name').textContent = sanitizeInput(userData.username);
+                document.getElementById('player-name').textContent = safeUsername;
+                document.getElementById('username-edit-input').value = userData.username || "";
             });
 
-            // تحديث الواجهة
             switchView('lobby-view');
-            headerButtons.style.display = 'flex';
-            logoutButton.style.display = 'block';
-            lobbyButton.style.display = 'block';
+            document.getElementById('header-buttons').style.display = 'flex';
+            document.getElementById('logout-button').style.display = 'block';
+            document.getElementById('lobby-button').style.display = 'block';
 
-            // تحميل اللاعبين وبدء مراقبة التحديات (من app.js)
-            window.loadPlayersList();
-            window.monitorIncomingChallenges();
+            if (window.loadPlayersList) window.loadPlayersList();
+            if (window.monitorIncomingChallenges) window.monitorIncomingChallenges();
 
         } else {
             currentUserId = null;
             switchView('login-view');
-            headerButtons.style.display = 'none';
+            document.getElementById('header-buttons').style.display = 'none';
         }
     });
     
     function getFriendlyErrorMessage(code) {
         switch (code) {
-            case 'auth/user-not-found':
-            case 'auth/wrong-password': return 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
+            case 'auth/user-not-found': case 'auth/wrong-password': return 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
             case 'auth/email-already-in-use': return 'هذا البريد الإلكتروني مسجل بالفعل.';
             case 'auth/weak-password': return 'كلمة المرور ضعيفة (6 أحرف على الأقل).';
             case 'auth/username-already-in-use': return 'اسم المستخدم هذا محجوز، اختر اسماً آخر.';

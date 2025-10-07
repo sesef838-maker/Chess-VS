@@ -6,9 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // ======================= 1. قائمة اللاعبين =======================
     window.loadPlayersList = function() {
-        const usersRef = db.ref('users');
-        
-        usersRef.on('value', (snapshot) => {
+        db.ref('users').on('value', (snapshot) => {
             activePlayersList.innerHTML = '';
             inactivePlayersList.innerHTML = '';
             
@@ -16,12 +14,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const userData = childSnapshot.val();
                 const uid = childSnapshot.key;
 
-                if (uid === currentUserId) return; // لا تعرض نفسك في القائمة
+                if (uid === currentUserId) return;
 
                 const li = document.createElement('li');
                 li.innerHTML = `
                     <div class="player-info">
-                        <strong>${sanitizeInput(userData.username)}</strong>
+                        <strong>${sanitizeInput(userData.username || 'لاعب جديد')}</strong>
                         <span class="player-rating">(${userData.rating || 1200})</span>
                     </div>
                     <button class="btn-primary" onclick="window.challengePlayer('${uid}')" ${!userData.isOnline ? 'disabled' : ''}>
@@ -29,154 +27,133 @@ document.addEventListener('DOMContentLoaded', () => {
                     </button>
                 `;
                 
-                if (userData.isOnline) {
-                    activePlayersList.appendChild(li);
-                } else {
-                    inactivePlayersList.appendChild(li);
-                }
+                if (userData.isOnline) activePlayersList.appendChild(li);
+                else inactivePlayersList.appendChild(li);
             });
         });
     };
 
     // ======================= 2. نظام التحدي =======================
+    // (الكود هنا لم يتغير)
     let activeChallengeListener = null;
 
-    // إرسال تحدٍ
     window.challengePlayer = async function(opponentUid) {
         if (!currentUserId || opponentUid === currentUserId) return;
-
         const timeControl = document.getElementById('time-control-select').value;
         const matchType = document.getElementById('match-type-select').value;
-        
         const myData = (await db.ref(`users/${currentUserId}`).once('value')).val();
         const opponentData = (await db.ref(`users/${opponentUid}`).once('value')).val();
-
         const challengeData = {
-            challengerId: currentUserId,
-            challengerUsername: myData.username,
-            opponentId: opponentUid,
-            opponentUsername: opponentData.username,
-            timeControl: parseInt(timeControl),
-            matchType: matchType,
-            status: 'pending',
+            challengerId: currentUserId, challengerUsername: myData.username,
+            opponentId: opponentUid, opponentUsername: opponentData.username,
+            timeControl: parseInt(timeControl), matchType: matchType, status: 'pending',
             createdAt: firebase.database.ServerValue.TIMESTAMP
         };
-        
         const challengeRef = db.ref('challenges').push();
         await challengeRef.set(challengeData);
         alert(`تم إرسال التحدي إلى ${opponentData.username}.`);
-
-        // مراقبة الرد
         monitorChallengeResponse(challengeRef.key);
     };
-
-    // مراقبة رد الخصم
     function monitorChallengeResponse(challengeKey) {
         const challengeRef = db.ref('challenges/' + challengeKey);
         challengeRef.on('value', (snap) => {
             const challenge = snap.val();
-            if (!challenge) {
-                challengeRef.off(); // توقف عن الاستماع إذا حُذف التحدي
-                return;
-            }
-
+            if (!challenge) { challengeRef.off(); return; }
             if (challenge.status === 'accepted') {
                 alert(`قبل ${challenge.opponentUsername} التحدي!`);
-                challengeRef.off();
-                window.startGame(challenge.gameId);
+                challengeRef.off(); window.startGame(challenge.gameId);
             } else if (challenge.status === 'declined') {
                 alert(`رفض ${challenge.opponentUsername} التحدي.`);
-                challengeRef.off();
-                challengeRef.remove(); // تنظيف قاعدة البيانات
+                challengeRef.off(); challengeRef.remove();
             }
         });
     }
-
-    // مراقبة التحديات الواردة
     window.monitorIncomingChallenges = function() {
-        if (activeChallengeListener) activeChallengeListener.off(); // إزالة المستمع القديم
-
+        if (activeChallengeListener) activeChallengeListener.off();
         const challengesRef = db.ref('challenges').orderByChild('opponentId').equalTo(currentUserId);
-        
         activeChallengeListener = challengesRef.on('child_added', (snap) => {
             const challenge = snap.val();
-            const challengeKey = snap.key;
-
-            if (challenge.status === 'pending') {
-                showChallengeModal(challengeKey, challenge);
-            }
+            if (challenge.status === 'pending') showChallengeModal(snap.key, challenge);
         });
     };
-
-    // عرض نافذة التحدي المنبثقة
     function showChallengeModal(key, data) {
         const modal = document.getElementById('challenge-modal');
         document.getElementById('challenge-details').innerHTML = 
             `اللاعب <strong>${sanitizeInput(data.challengerUsername)}</strong> يتحدّاك في مباراة ${data.matchType === 'rated' ? 'مصنفة' : 'ودية'}.<br>
             الوقت: ${data.timeControl} دقائق لكل لاعب.`;
-        
         const acceptBtn = document.getElementById('accept-challenge-btn');
         const declineBtn = document.getElementById('decline-challenge-btn');
-
-        // يجب استنساخ الأزرار لإزالة أي مستمعين قدامى
         const newAcceptBtn = acceptBtn.cloneNode(true);
         const newDeclineBtn = declineBtn.cloneNode(true);
         acceptBtn.parentNode.replaceChild(newAcceptBtn, acceptBtn);
         declineBtn.parentNode.replaceChild(newDeclineBtn, declineBtn);
-
-        newAcceptBtn.onclick = () => {
-            acceptChallenge(key, data);
-            modal.style.display = 'none';
-        };
-        newDeclineBtn.onclick = () => {
-            db.ref(`challenges/${key}`).update({ status: 'declined' });
-            modal.style.display = 'none';
-        };
-
+        newAcceptBtn.onclick = () => { acceptChallenge(key, data); modal.style.display = 'none'; };
+        newDeclineBtn.onclick = () => { db.ref(`challenges/${key}`).update({ status: 'declined' }); modal.style.display = 'none'; };
         modal.style.display = 'flex';
     }
-
-    // قبول التحدي وإنشاء اللعبة
     async function acceptChallenge(challengeKey, challengeData) {
         const gameRef = db.ref('games').push();
         const gameId = gameRef.key;
-
-        // تحديد من يلعب بالأبيض عشوائياً
         const isChallengerWhite = Math.random() < 0.5;
         const whitePlayer = isChallengerWhite ? challengeData.challengerId : challengeData.opponentId;
         const blackPlayer = isChallengerWhite ? challengeData.opponentId : challengeData.challengerId;
-
         const gameData = {
-            fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-            status: 'active',
-            whitePlayerId: whitePlayer,
-            blackPlayerId: blackPlayer,
-            turn: 'w',
-            timeControl: challengeData.timeControl,
-            whiteTime: challengeData.timeControl * 60, // بالثواني
-            blackTime: challengeData.timeControl * 60,
-            moves: [],
+            fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", status: 'active',
+            whitePlayerId: whitePlayer, blackPlayerId: blackPlayer, turn: 'w',
+            timeControl: challengeData.timeControl, whiteTime: challengeData.timeControl * 60,
+            blackTime: challengeData.timeControl * 60, moves: [],
             createdAt: firebase.database.ServerValue.TIMESTAMP
         };
-        
         await gameRef.set(gameData);
         await db.ref(`challenges/${challengeKey}`).update({ status: 'accepted', gameId: gameId });
-        
         window.startGame(gameId);
     }
     
-    // ======================= 3. الإعدادات =======================
+    // ======================= 3. الإعدادات (مع تعديل الملف الشخصي) =======================
     const settingsModal = document.getElementById('settings-modal');
     const themeSelect = document.getElementById('theme-select');
+    const saveUsernameBtn = document.getElementById('save-username-button');
+    const usernameInput = document.getElementById('username-edit-input');
+    const settingsFeedback = document.getElementById('settings-feedback');
 
-    document.getElementById('settings-button').onclick = () => settingsModal.style.display = "flex";
+    document.getElementById('settings-button').onclick = () => {
+        settingsFeedback.textContent = '';
+        settingsFeedback.className = 'feedback-text';
+        settingsModal.style.display = "flex";
+    };
     settingsModal.querySelector('.close-button').onclick = () => settingsModal.style.display = "none";
     
     themeSelect.addEventListener('change', (e) => {
-        if (e.target.value === 'light') {
-            document.body.classList.add('light-theme');
-        } else {
-            document.body.classList.remove('light-theme');
+        document.body.classList.toggle('light-theme', e.target.value === 'light');
+    });
+
+    saveUsernameBtn.addEventListener('click', async () => {
+        const newUsername = sanitizeInput(usernameInput.value.trim());
+
+        if (newUsername.length < 3 || newUsername.length > 15) {
+            settingsFeedback.textContent = 'الاسم يجب أن يكون بين 3 و 15 حرفاً.';
+            settingsFeedback.className = 'feedback-text error';
+            return;
+        }
+
+        try {
+            const usersRef = db.ref('users');
+            const snapshot = await usersRef.orderByChild('username').equalTo(newUsername).once('value');
+            
+            // تحقق مما إذا كان الاسم محجوزاً من قبل لاعب آخر
+            if (snapshot.exists() && Object.keys(snapshot.val())[0] !== currentUserId) {
+                settingsFeedback.textContent = 'هذا الاسم مستخدم بالفعل.';
+                settingsFeedback.className = 'feedback-text error';
+            } else {
+                // تحديث الاسم
+                await usersRef.child(currentUserId).update({ username: newUsername });
+                settingsFeedback.textContent = 'تم حفظ الاسم بنجاح!';
+                settingsFeedback.className = 'feedback-text success';
+            }
+        } catch (error) {
+            settingsFeedback.textContent = 'حدث خطأ أثناء الحفظ.';
+            settingsFeedback.className = 'feedback-text error';
+            console.error("Error updating username:", error);
         }
     });
 
