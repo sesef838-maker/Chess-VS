@@ -1,0 +1,269 @@
+/* ============================================================
+CSS: الألوان والتصميم (نمط داكن حديث)
+============================================================ */
+:root {
+    /* ألوان عامة */
+    --bg-color: #1a1a2e; /* خلفية الموقع الرئيسية */
+    --surface-color: #2c2c4b; /* خلفية الكتل (البطاقات) */
+    --primary-color: #4a772e; /* أخضر داكن (لأزرار الإجراءات) */
+    --accent-color: #00bcd4;  /* أزرق سماوي (للتمييز) */
+    --text-light: #e0e0e0;
+    --error-color: #e94560;
+
+    /* ألوان اللوح */
+    --square-light: #f0d9b5;
+    --square-dark: #b58863;
+    --highlight-select: #ffc107;
+}
+
+/* التنسيق الأساسي */
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-light);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    direction: rtl;
+    text-align: right;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--surface-color);
+    padding: 15px 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    z-index: 10;
+}
+
+h1 {
+    margin: 0;
+    color: var(--accent-color);
+    font-size: 2em;
+}
+
+/* ============================================================
+نماذج الإدخال والأزرار
+============================================================ */
+input, select {
+    padding: 12px;
+    border: 1px solid #4a4a75;
+    border-radius: 5px;
+    background-color: #3c3c66;
+    color: var(--text-light);
+    font-size: 1em;
+}
+
+button {
+    padding: 10px 15px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #6a954e;
+}
+
+.btn-error {
+    background-color: var(--error-color);
+}
+.btn-error:hover {
+    background-color: #ff6681;
+}
+
+/* ============================================================
+إدارة الواجهات (Views)
+============================================================ */
+
+.main-content-area {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.view {
+    display: none;
+    padding: 20px 0;
+    min-height: 80vh;
+}
+
+/* 1. شاشة تسجيل الدخول (Login View) */
+#login-view {
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.auth-box {
+    padding: 30px;
+    background-color: var(--surface-color);
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+    width: 100%;
+    max-width: 400px;
+}
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* 2. شاشة الردهة (Lobby View) */
+#lobby-view {
+    gap: 30px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.lobby-sidebar {
+    flex: 1;
+    min-width: 250px;
+    padding: 20px;
+    background-color: var(--surface-color);
+    border-radius: 10px;
+    align-self: flex-start;
+}
+
+.lobby-main {
+    flex: 3;
+    min-width: 350px;
+}
+
+.user-stats-card, .control-group {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #4a4a75;
+}
+
+.full-width-select {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+/* 3. شاشة اللعب (Game View) */
+#game-view {
+    gap: 30px;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.game-board-area {
+    flex-grow: 1; 
+    display: flex;
+    justify-content: center;
+}
+
+.game-info-sidebar {
+    width: 250px;
+    min-width: 250px;
+    padding: 20px;
+    background-color: var(--surface-color);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.chessboard {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    width: min(80vh, 600px);
+    height: min(80vh, 600px);
+    border: 5px solid var(--accent-color);
+    box-shadow: 0 0 15px rgba(0, 188, 212, 0.5);
+}
+
+.square {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 55px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.1s;
+}
+
+.light { background-color: var(--square-light); }
+.dark { background-color: var(--square-dark); }
+
+.square.selected {
+    background-color: var(--highlight-select) !important;
+}
+
+.piece.white { color: #ffffff; text-shadow: 1px 1px 2px #000; }
+.piece.black { color: #000000; text-shadow: 1px 1px 2px #fff; }
+
+.status-message {
+    font-size: 1.1em;
+    color: var(--accent-color);
+    padding: 10px;
+    background-color: rgba(0, 188, 212, 0.1);
+    border-radius: 5px;
+}
+
+.clock {
+    padding: 10px;
+    background-color: #1a1a2e;
+    border-radius: 5px;
+    text-align: center;
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-top: 5px;
+}
+
+/* قائمة اللاعبين */
+.player-list {
+    list-style: none;
+    padding: 0;
+    max-height: 350px;
+    overflow-y: auto;
+    border: 1px solid #3c3c66;
+    border-radius: 5px;
+}
+
+.player-list li {
+    padding: 10px;
+    border-bottom: 1px solid #3c3c66;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 10px;
+    display: inline-block;
+}
+
+.status-dot.active { background-color: #33ff33; }
+.status-dot.inactive { background-color: #777; }
+
+/* استجابة الشاشات الصغيرة */
+@media (max-width: 950px) {
+    #lobby-view, #game-view {
+        flex-direction: column;
+        align-items: center;
+    }
+    .lobby-sidebar, .game-info-sidebar {
+        width: 100%;
+        max-width: 600px;
+    }
+    .chessboard {
+        width: 95vw;
+        height: 95vw;
+        max-width: 500px;
+        max-height: 500px;
+    }
+}
